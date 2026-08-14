@@ -1,3 +1,4 @@
+import hashlib
 import math
 import os
 
@@ -77,10 +78,15 @@ def savefig(fig, name):
     return name
 
 
+def file_hash(path):
+    with open(path, "rb") as f:
+        return hashlib.md5(f.read()).hexdigest()[:8]
+
+
 def write_gallery(names):
     cards = "\n".join(
-        f'''    <a class="card" href="{name}.pdf">
-      <img src="{name}.png" alt="{name}">
+        f'''    <a class="card" href="{name}.pdf?v={file_hash(os.path.join(IMAGES_DIR, f"{name}.pdf"))}">
+      <img src="{name}.png?v={file_hash(os.path.join(IMAGES_DIR, f"{name}.png"))}" alt="{name}">
       <div class="caption">{name.replace("_", " ").title()}</div>
     </a>'''
         for name in names
