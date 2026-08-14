@@ -14,7 +14,7 @@ FIGSIZE = (7, 5.5)
 
 STYLES = {
     "existing": {"color": "#1b1b1b", "marker": "o", "linestyle": "-"},
-    "theory": {"color": "#7570b3", "marker": "s", "linestyle": "--"},
+    "theory": {"color": "#4B0082", "marker": "s", "linestyle": "--"},
     "projection": {"color": "tab:red", "marker": "D", "linestyle": ":"},
 }
 
@@ -126,7 +126,7 @@ def write_gallery(names):
 # PIENU / PiBeta goal plots (previously the two panels of images/goals.png)
 # ---------------------------------------------------------------------------
 
-pienu_goal = 0.01
+pienu_goal = 0.01 # goal to reach 0.01% relative uncert
 pienu_values = [
     # name, value, stat, syst, scale factor
     ["World average", 1.2327, 0, 0.0023, 1e-4],  # PDG: https://pdg.lbl.gov/2018/listings/rpp2018-list-pi-plus-minus.pdf
@@ -138,15 +138,13 @@ pienu_values.append(
 #    [f"PIONEER Goal: {pienu_goal}%", pienu_values[0][1], 0, pienu_values[0][1] * pienu_goal / 100.0, 1e-4]
 )
 
-pibeta_goal = 0.1  # in percent, 6 times better than now 0.6 / 6.
+pibeta_goal = 0.1   # We plan to do 6 times better than pibeta, so reaching 0.1%
 pibeta_values = [
 #    ["World average", 1.036, 0.006, 0, 0, 1e-8],
     ["World average", 1.038, 0.006, 0, 0, 1e-8], # from https://inspirehep.net/literature/3118920
-    ["Theory", 1.0385, 0.0007, 0, 0, 1e-8],
-#    ["Theory (90% CL)", 1.039, 0.001, 0, 0, 1e-8],
 ]
 pibeta_values.append(
-    ["PIONEER Goal", pibeta_values[0][1], pibeta_values[0][1] * pibeta_goal / 100.0, 0, 0, 1e-8]
+    ["PIONEER Goal", pibeta_values[0][1], pibeta_values[0][1]*pibeta_goal/100., 0, 0, 1e-8]
 #    [f"PIONEER Goal: {pibeta_goal}%", pibeta_values[0][1], pibeta_values[0][1] * pibeta_goal / 100.0, 0, 0, 1e-8]
 )
 
@@ -158,48 +156,34 @@ def theory_shades(n):
     return list(np.linspace(0.7, 1.3, n))
 
 
-def theory_row_spans(n, band_height=2.5):
-    """Stacked, non-overlapping y-spans for n theory bands, straddling y=0 (the
-    'existing' row's position): the first half stack upward from 0, the second
-    half stack downward from 0, so one band's edge and the next band's edge meet
-    exactly at 0."""
-    above_count = math.ceil(n / 2)
-    spans = []
-    for i in range(n):
-        if i < above_count:
-            spans.append((i * band_height, (i + 1) * band_height))
-        else:
-            j = i - above_count
-            spans.append((-(j + 1) * band_height, -j * band_height))
-    return spans
+PIENU_THEORY_COLORS = ["#4B0082", "#0F8B8D"]  # indigo (ChPT), teal (LQCD)
+PIENU_THEORY_LINESTYLES = ["--", "-."]
 
 
 def plot_pienu():
     fig, ax = plt.subplots(figsize=FIGSIZE)
     existing = STYLES["existing"]
-    theory = STYLES["theory"]
     projection = STYLES["projection"]
 
     existing_value = pienu_values[0]
     theory_rows = [v for v in pienu_values if "Theory" in v[0]]
     goal_rows = [v for v in pienu_values if "Goal" in v[0]]
 
-    row_spans = theory_row_spans(len(theory_rows))
-    y_extent = max(abs(y) for span in row_spans for y in span) if row_spans else 5
-    ylims = (-y_extent - 1, y_extent + 1)
+    ylims = (-5, 5)
     plotables, labels = [], []
 
     combined_error = np.sqrt(existing_value[2] ** 2 + existing_value[3] ** 2)
     p = plt.errorbar([existing_value[1]], [0], xerr=combined_error, label=existing_value[0],
-                      fmt=existing["marker"], color=existing["color"])
+                      fmt=existing["marker"], color=existing["color"], markersize=9, linewidth=2.2,
+                      capsize=4, capthick=2.2)
     plotables.append(p)
     labels.append(existing_value[0])
 
-    for value, factor, row_span in zip(theory_rows, theory_shades(len(theory_rows)), row_spans):
-        color = shade(theory["color"], factor)
+    for value, color, linestyle in zip(theory_rows, PIENU_THEORY_COLORS, PIENU_THEORY_LINESTYLES):
         combined_error = np.sqrt(value[2] ** 2 + value[3] ** 2)
-        p = plt.fill_betweenx(row_span, value[1] - combined_error, value[1] + combined_error, alpha=0.5, color=color)
-        plt.plot([value[1], value[1]], row_span, color=color, linestyle=theory["linestyle"])
+        p = plt.fill_betweenx(ylims, value[1] - combined_error, value[1] + combined_error,
+                               facecolor=color, alpha=0.4, edgecolor=color, linewidth=2)
+        plt.plot([value[1], value[1]], ylims, color=color, linestyle=linestyle, linewidth=2.2)
         plotables.append(p)
         labels.append(value[0])
 
@@ -221,14 +205,16 @@ def plot_pienu():
     return savefig(fig, "pienu")
 
 
+PIBETA_THEORY_COLORS = ["#4B0082", "#0F8B8D"]  # match PIENU: indigo / teal
+PIBETA_THEORY_LINESTYLES = ["--", "-."]
+
+
 def plot_pibeta():
     fig, ax = plt.subplots(figsize=FIGSIZE)
     existing = STYLES["existing"]
-    theory = STYLES["theory"]
     projection = STYLES["projection"]
 
     existing_value = pibeta_values[0]
-    theory_rows = [v for v in pibeta_values if "Theory" in v[0]]
     goal_rows = [v for v in pibeta_values if "Goal" in v[0]]
 
     ylims = (-5, 5)
@@ -245,13 +231,19 @@ def plot_pibeta():
     plotables.append(p)
     labels.append(existing_value[0])
 
-    # for value, factor in zip(theory_rows, theory_shades(len(theory_rows))):
-    #     color = shade(theory["color"], factor)
-    #     combined_error_2 = np.sqrt(value[2] ** 2 + value[3] ** 2 + value[4] ** 2)
-    #     p = plt.fill_betweenx(ylims, value[1] - combined_error_2, value[1] + combined_error_2, alpha=0.5, color=color)
-    #     plt.plot([value[1], value[1]], ylims, color=color, linestyle=theory["linestyle"])
-    #     plotables.append(p)
-    #     labels.append(value[0])
+    vud_direct = (Vud_SFT, Delta_Vud_SFT, r"Theory ($V_{ud}$ PDG average)")
+    vud_unitarity_err = (Vud_pdg_average["up"] - Vud_pdg_average["do"]) / 2
+    vud_unitarity = (Vud_pdg_average["nom"], vud_unitarity_err, r"Theory ($V_{us}$ unitarity)")
+
+    for (Vud, dVud, label), color, linestyle in zip(
+        [vud_direct], PIBETA_THEORY_COLORS, PIBETA_THEORY_LINESTYLES
+    ):
+        R, dR = pibeta_from_vud(Vud, dVud)
+        print(Vud, dVud, R, dR)
+        p = plt.fill_betweenx(ylims, R - dR, R + dR, facecolor=color, alpha=0.4, edgecolor=color, linewidth=2)
+        plt.plot([R, R], ylims, color=color, linestyle=linestyle, linewidth=2.2)
+        plotables.append(p)
+        labels.append(label)
 
     for value in goal_rows:
         combined_error = np.sqrt(value[2] ** 2 + value[3] ** 2)
@@ -260,6 +252,8 @@ def plot_pibeta():
         labels.append(value[0])
 
     plt.ylim(*ylims)
+    xlims = (1.030, 1.045)
+    plt.xlim(*xlims)
     ax.get_yaxis().set_visible(False)
     plt.legend(handles=plotables, labels=labels, loc=2)
     plt.xlabel(r"$R_{\pi \beta} \times 10^{8}$")
@@ -277,17 +271,31 @@ def plot_pibeta():
 Vus = 0.22431  # pdg 2024
 Delta_Vus = 0.00085  # pdg 2024
 
-Vus_kl3 = 0.2233
+Vus_kl3 = 0.2233 # pdg 2024
 Delta_Vus_kl3 = 0.0005
 
-Vus_Vus_over_Vud = 0.2250
+Vus_Vus_over_Vud = 0.2250  # pdg 2024
 Delta_Vus_Vus_over_Vud = 0.0004
 
-Vub = 3.82e-3
+Vub = 3.82e-3 # pdg 2024
 Delta_Vub = 0.20e-3
 
-Vud_pi = 0.97346 # from https://arxiv.org/pdf/2602.11253
-Delta_Vud_pi = 0.00283
+Vud_pi = 0.97346 # from https://journals.aps.org/prl/pdf/10.1103/rg2q-m515
+Delta_Vud_pi_Br    = 0.00281
+def Delta_Vud_pi_calc(Delta_Vud_pi_Br):
+    Delta_Vud_pi_taupi = 0.00009
+    Delta_Vud_pi_RC    = 0.00005
+    Delta_Vud_pi_Ipil  = 0.00027
+    components = [
+        Delta_Vud_pi_Br,
+        Delta_Vud_pi_taupi,
+        Delta_Vud_pi_RC,
+        Delta_Vud_pi_Ipil,
+    ]
+    _Delta_Vud_pi = math.sqrt(sum([a**2 for a in components]))
+    return _Delta_Vud_pi
+Delta_Vud_pi = Delta_Vud_pi_calc(Delta_Vud_pi_Br)
+                              
 
 Vud_n = 0.97430
 Delta_Vud_n = 0.00088
@@ -301,6 +309,17 @@ def vud_from_unitarity(Vus, Vub, Delta_Vus):
     Vud_up = math.sqrt(1 - math.pow(Vus + Delta_Vus, 2) - math.pow(Vub, 2))
     Vud_do = math.sqrt(1 - math.pow(Vus - Delta_Vus, 2) - math.pow(Vub, 2))
     return {"nom": Vud, "up": Vud_up, "do": Vud_do}
+
+
+PIBETA_VUD_K = 1.09538
+PIBETA_VUD_DELTA_K = 0.00066
+
+
+def pibeta_from_vud(Vud, Delta_Vud, K=PIBETA_VUD_K, Delta_K=PIBETA_VUD_DELTA_K):
+    """R_pibeta (x1e8) and its uncertainty from Vud via 1e8*R_pibeta/Vud^2 = K."""
+    R = K * Vud ** 2
+    rel_err = math.sqrt((Delta_K / K) ** 2 + (2 * Delta_Vud / Vud) ** 2)
+    return R, R * rel_err
 
 
 Vud_pdg_average = vud_from_unitarity(Vus, Vub, Delta_Vus)
@@ -327,8 +346,8 @@ def _draw_unitarity_base(ax, box_halfwidth=0.1):
         ax.plot(x_span, [y_center, y_center], color=color, linestyle=projection["linestyle"], linewidth=2)
         return box
 
-    proj3 = phase_box(3, Vud_pi, Delta_Vud_pi / 3.0, projection["color"], "PIONEER Phase II")
-    proj6 = phase_box(3.33, Vud_pi, Delta_Vud_pi / 6.0, PROJECTION_ALT_COLOR, "PIONEER Phase III")
+    proj3 = phase_box(3, Vud_pi, Delta_Vud_pi_calc(Delta_Vud_pi_Br/ 3.0), projection["color"], "PIONEER Phase II")
+    proj6 = phase_box(3.33, Vud_pi, Delta_Vud_pi_calc(Delta_Vud_pi_Br / 6.0), PROJECTION_ALT_COLOR, "PIONEER Phase III")
     return meas, proj3, proj6
 
 
